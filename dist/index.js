@@ -19,28 +19,23 @@ app.use(express_1.default.static('public'));
 app.use(express_1.default.urlencoded({ extended: false }));
 // Parse JSON bodies (as sent by API clients)
 app.use(express_1.default.json());
-// app.get("/", (req, res) => {
-//     console.log("came");
-// })
-app.post("/room", (req, res) => {
-    const data = req.body;
-    console.log(data);
-    const username = data.username;
-    const roomid = data.roomid;
-    console.log(username, roomid);
-    // console.log(checkIfUserExists(username, roomid));
+app.get("/room", (req, res) => {
+    const username = req.query.username;
+    const roomid = req.query.roomid;
     if (users_1.checkIfUserExists(username, roomid) == undefined) {
-        console.log("user does not exist");
-        const url = `/room.html?username=${username}&name=${roomid}`;
-        res.redirect(url);
+        if (users_1.checkIfRoomExists(roomid) == undefined) {
+            const message = "Please enter a valid Room ID.";
+            res.end(JSON.stringify({ error: true, message: message }));
+        }
+        else {
+            res.end(JSON.stringify({ error: false }));
+        }
     }
     else {
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ error: "This is error" }));
+        const message = "Username already taken. Please enter a different username.";
+        res.end(JSON.stringify({ error: true, message: message }));
     }
 });
-// req.flash('success_msg', 'You are registered and can now login')
-// res.redirect('/users/login')
 io.on("connection", (socket) => {
     var currUser;
     const updateUsersList = (roomID) => {
@@ -62,21 +57,14 @@ io.on("connection", (socket) => {
         socket.emit("getRoomID", (roomID));
         updateUsersList(roomID);
     });
-    socket.on("joinRoom", (userObj, callback) => {
+    socket.on("joinRoom", (userObj) => {
         const user = {
             id: socket.id,
             username: userObj.username,
             room: userObj.roomid,
             role: userObj.role
         };
-        const error = users_1.addUser(user);
-        console.log(error);
-        if (error) {
-            return callback(error);
-        }
-        else {
-            callback();
-        }
+        users_1.addUser(user);
         currUser = user;
         socket.join(user.room);
         const message = "has joined the Room 🎉";
